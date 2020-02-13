@@ -1,0 +1,39 @@
+{
+	"name": "prettyprint",
+	"description": "Pretty-print structured strings heuristically based on parentheses",
+	"license": "MIT",
+	"authors": [
+		"Mathis Beer"
+	],
+
+	"targetType": "library",
+
+	"sourcePaths": ["src"],
+	"importPaths": ["src"],
+
+	"configurations": [
+		{
+			"name": "application",
+			"targetName": "pp",
+      "targetPath": "build",
+			"targetType": "executable",
+		},
+		{
+			"name": "library",
+      "excludedSourceFiles": ["src/pp.d"],
+      "targetPath": "build",
+		},
+		{
+			"name": "unittest",
+      "excludedSourceFiles": ["src/pp.d"],
+			"targetType": "executable",
+			"targetName": "TestRunner",
+			"targetPath": "build",
+			"preBuildCommands": ["$DUB run --compiler=$$DC unit-threaded -c gen_ut_main -- -f build/ut.d"],
+			"mainSourceFile": "build/ut.d",
+			"dependencies": {
+				"unit-threaded": "~>0.10"
+			}
+		}
+	]
+}
