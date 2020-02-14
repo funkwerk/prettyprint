@@ -6,7 +6,7 @@ prettyprint takes a string representing a tree of parentheses and linebreaks and
 
 ## Command line tool
 
-    dub run prettyprint < logfile
+    dub run prettyprint:pp < logfile
 
 ## Library
 

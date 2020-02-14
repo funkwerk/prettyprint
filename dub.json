@@ -6,34 +6,39 @@
 		"Mathis Beer"
 	],
 
-	"targetType": "library",
-
 	"sourcePaths": ["src"],
 	"importPaths": ["src"],
 
 	"configurations": [
 		{
-			"name": "application",
-			"targetName": "pp",
-      "targetPath": "build",
-			"targetType": "executable",
-		},
-		{
 			"name": "library",
-      "excludedSourceFiles": ["src/pp.d"],
-      "targetPath": "build",
+			"targetPath": "build",
+			"targetType": "library",
+			"excludedSourceFiles": ["src/pp.d"],
 		},
 		{
 			"name": "unittest",
-      "excludedSourceFiles": ["src/pp.d"],
-			"targetType": "executable",
-			"targetName": "TestRunner",
+			"excludedSourceFiles": ["src/pp.d"],
 			"targetPath": "build",
+			"targetName": "TestRunner",
+			"targetType": "executable",
 			"preBuildCommands": ["$DUB run --compiler=$$DC unit-threaded -c gen_ut_main -- -f build/ut.d"],
 			"mainSourceFile": "build/ut.d",
 			"dependencies": {
 				"unit-threaded": "~>0.10"
 			}
 		}
-	]
+	],
+	"subPackages": [
+		{
+			"name": "pp",
+			"description": "Pretty-print runner that reads stdin and outputs prettyprinted lines",
+			"targetType": "application",
+			"sourcePaths": ["pp/src"],
+			"targetPath": "../build",
+			"targetName": "pp",
+			"targetType": "executable",
+			"dependencies": { "prettyprint": "*" },
+		},
+	],
 }
