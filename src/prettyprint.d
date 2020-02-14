@@ -57,6 +57,27 @@ unittest
         )".outdent.strip);
 }
 
+@("list of strings")
+unittest
+{
+    prettyprint(`["a", "b"]`).shouldEqual(`["a", "b"]`);
+}
+
+// bug
+@("linebreak with comma separated elements without children")
+unittest
+{
+    import std.string : outdent, strip;
+
+    const filler = "-".repeat(80).join;
+
+    prettyprint(filler ~ `("a", "b")`).shouldEqual(filler ~ `
+    (
+        "a",
+        "b"
+    )`.outdent.strip);
+}
+
 private enum indent = " ".repeat(4).join;
 
 private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
@@ -68,14 +89,11 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
     {
         if (tree.parenType.isNull)
         {
+            buffer ~= tree.suffix;
             return;
         }
         buffer ~= tree.parenType.get.opening;
         tree.children.enumerate.each!((index, child) {
-            if (index > 0)
-            {
-                buffer ~= ",";
-            }
             buffer ~= child.prefix;
             renderSingleLine(child);
         });
@@ -95,6 +113,7 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
         }
         if (tree.parenType.isNull)
         {
+            buffer ~= tree.suffix;
             return;
         }
         buffer ~= tree.parenType.get.opening;
@@ -215,6 +234,16 @@ unittest
     parse(text).shouldEqual(null);
 }
 
+// bug
+@("list of strings")
+unittest
+{
+    parse(`["a", "b"]`).shouldEqual([Tree("", ParenType.squareBracket.nullable, [
+        Tree(`"a"`, Nullable!ParenType(), null, ","),
+        Tree(` "b"`),
+    ])]);
+}
+
 private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = ",")
 {
     auto parenStart = textRange.findAmong("({[");
@@ -224,7 +253,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
     {
         const prefix = textRange.textUntil(closer);
 
-        textRange = closer;
+        textRange = closer.consumeQuote;
 
         return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
     }
@@ -233,7 +262,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
 
     if (parenStart.empty)
     {
-        textRange = parenStart;
+        textRange = parenStart.consumeQuote;
 
         return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
     }
@@ -406,6 +435,12 @@ private struct QuotedText
         skipQuote;
     }
 
+    QuotedText consumeQuote()
+    {
+        // set this.textBeforeSkip to this.text, indicating that we've already accounted for quotes
+        return QuotedText(this.text);
+    }
+
     // return text from start until other, which must be a different range over the same text
     string textUntil(QuotedText other)
     in (other.text.refSuffixOf(this.textBeforeSkip))
@@ -424,11 +459,6 @@ private struct QuotedText
     dchar front() const
     {
         return this.text.front;
-    }
-
-    QuotedText save() const
-    {
-        return QuotedText(this.text, this.textBeforeSkip);
     }
 
     void popFront()
