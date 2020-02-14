@@ -80,6 +80,7 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
             renderSingleLine(child);
         });
         buffer ~= tree.parenType.get.closing;
+        buffer ~= tree.suffix;
     }
 
     void renderIndented(const Tree tree, size_t level = 0)
@@ -98,10 +99,6 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
         }
         buffer ~= tree.parenType.get.opening;
         tree.children.enumerate.each!((index, child) {
-            if (index > 0)
-            {
-                buffer ~= ",";
-            }
             buffer.newline;
             (level + 1).iota.each!((_) { buffer ~= indent; });
             renderIndented(child, level + 1);
@@ -109,6 +106,7 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
         buffer.newline;
         level.iota.each!((_) { buffer ~= indent; });
         buffer ~= tree.parenType.get.closing;
+        buffer ~= tree.suffix;
     }
     renderIndented(tree);
 }
@@ -168,13 +166,15 @@ unittest
 {
     parse("Foo").shouldEqual([Tree("Foo")]);
     parse(`"Foo"`).shouldEqual([Tree(`"Foo"`)]);
-    parse("Foo,").shouldEqual(null);
-    parse("Foo, Bar").shouldEqual(null);
+    parse("Foo,").shouldEqual([Tree("Foo", Nullable!ParenType(), null, ",")]);
+    parse("Foo, Bar").shouldEqual([
+        Tree("Foo", Nullable!ParenType(), null, ","),
+        Tree(" Bar")]);
     parse("Foo()").shouldEqual([Tree("Foo", ParenType.paren.nullable)]);
     parse("Foo[a, b]").shouldEqual([Tree(
         "Foo",
         ParenType.squareBracket.nullable,
-        [Tree("a"), Tree(" b")])]);
+        [Tree("a", Nullable!ParenType(), null, ","), Tree(" b")])]);
     parse(`Foo{"\""}`).shouldEqual([Tree(
         "Foo",
         ParenType.curlyBracket.nullable,
@@ -192,10 +192,33 @@ unittest
         Tree(" Bar", ParenType.paren.nullable)]);
 }
 
-private Nullable!Tree parse(ref QuotedText textRange)
+// bug
+@("tree with trailing text")
+unittest
+{
+    parse(`(() )`).shouldEqual([
+        Tree(
+            "",
+            ParenType.paren.nullable,
+            [
+                Tree("", ParenType.paren.nullable),
+                Tree(" "),
+            ])]);
+}
+
+// bug
+@("quote followed by wrong closing paren")
+unittest
+{
+    const text = `("",""]`;
+
+    parse(text).shouldEqual(null);
+}
+
+private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = ",")
 {
     auto parenStart = textRange.findAmong("({[");
-    auto closer = textRange.findAmong(",)}]");
+    auto closer = textRange.findAmong(expectedClosers);
 
     if (textRange.textUntil(closer).length < textRange.textUntil(parenStart).length)
     {
@@ -203,7 +226,7 @@ private Nullable!Tree parse(ref QuotedText textRange)
 
         textRange = closer;
 
-        return prefix.empty ? Nullable!Tree() : Tree(prefix).nullable;
+        return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
     }
 
     const prefix = textRange.textUntil(parenStart);
@@ -212,7 +235,7 @@ private Nullable!Tree parse(ref QuotedText textRange)
     {
         textRange = parenStart;
 
-        return prefix.empty ? Nullable!Tree() : Tree(prefix).nullable;
+        return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
     }
 
     const parenType = () {
@@ -252,26 +275,29 @@ private Nullable!Tree parse(ref QuotedText textRange)
 
             textRange.popFront;
 
-            return Tree(prefix, Nullable!ParenType(parenType), children).nullable;
+            return textRange.parseSuffix(Tree(prefix, Nullable!ParenType(parenType), children)).nullable;
         }
 
-        if (!children.empty)
-        {
-            if (textRange.front != ',')
-            {
-                return Nullable!Tree();
-            }
-            textRange.popFront;
-        }
-
-        auto child = textRange.parse;
+        auto child = textRange.parse(parenType.closingWithComma);
 
         if (child.isNull)
         {
             return Nullable!Tree();
         }
+
         children ~= child;
     }
+}
+
+private Tree parseSuffix(ref QuotedText range, Tree tree)
+in (tree.suffix.empty)
+{
+    if (!range.empty && range.front == ',')
+    {
+        range.popFront;
+        tree.suffix = ",";
+    }
+    return tree;
 }
 
 // prefix
@@ -286,6 +312,8 @@ private struct Tree
 
     Tree[] children = null;
 
+    string suffix = null;
+
     bool lengthExceeds(size_t limit) const
     {
         return lengthRemainsOf(limit) < 0;
@@ -295,6 +323,7 @@ private struct Tree
     private ptrdiff_t lengthRemainsOf(ptrdiff_t length) const
     {
         length -= this.prefix.length;
+        length -= this.suffix.length;
         length -= this.parenType.isNull ? 0 : 2;
         if (length >= 0)
         {
@@ -324,29 +353,30 @@ private enum ParenType
     curlyBracket, // {}
 }
 
-private dchar opening(const ParenType parenType)
-{
-    final switch (parenType)
-    {
-        case ParenType.paren:
-            return '(';
-        case ParenType.squareBracket:
-            return '[';
-        case ParenType.curlyBracket:
-            return '{';
-    }
-}
+private alias opening = mapEnum!([
+    ParenType.paren: '(',
+    ParenType.squareBracket: '[',
+    ParenType.curlyBracket: '{']);
 
-private dchar closing(const ParenType parenType)
+private alias closing = mapEnum!([
+    ParenType.paren: ')',
+    ParenType.squareBracket: ']',
+    ParenType.curlyBracket: '}']);
+
+private alias closingWithComma = mapEnum!([
+    ParenType.paren: ",)",
+    ParenType.squareBracket: ",]",
+    ParenType.curlyBracket: ",}"]);
+
+private auto mapEnum(alias enumTable)(const typeof(enumTable.keys.front) key)
 {
-    final switch (parenType)
+    final switch (key)
     {
-        case ParenType.paren:
-            return ')';
-        case ParenType.squareBracket:
-            return ']';
-        case ParenType.curlyBracket:
-            return '}';
+        static foreach (mapKey, mapValue; enumTable)
+        {
+            case mapKey:
+                return mapValue;
+        }
     }
 }
 
@@ -362,7 +392,7 @@ private struct QuotedText
 
     string textBeforeSkip; // current read head before skipping quotes
 
-    invariant(this.text.refSuffixOf(this.textBeforeSkip));
+    debug invariant(this.text.refSuffixOf(this.textBeforeSkip));
 
     this(string text)
     {
