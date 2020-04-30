@@ -1,5 +1,7 @@
 module prettyprint;
 
+@safe:
+
 import std.algorithm;
 import std.range;
 import std.typecons;
@@ -85,7 +87,7 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
     import std.string : stripLeft;
 
     // skip prefix so caller can decide whether or not to strip
-    void renderSingleLine(const Tree tree)
+    void renderSingleLine(const Tree tree) @safe
     {
         if (tree.parenType.isNull)
         {
@@ -101,7 +103,7 @@ private void prettyprint(ref OutputBuffer buffer, const Tree tree, size_t width)
         buffer ~= tree.suffix;
     }
 
-    void renderIndented(const Tree tree, size_t level = 0)
+    void renderIndented(const Tree tree, size_t level = 0) @safe
     {
         const remainingWidth = width - buffer.currentLineLength;
 
@@ -505,7 +507,7 @@ private struct QuotedText
 // given an unsigned offset, left can be written as right[offset .. $].
 private bool refSuffixOf(string left, string right)
 {
-    return left.ptr + left.length == right.ptr + right.length && left.ptr >= right.ptr;
+    return cast(size_t) left.ptr + left.length == cast(size_t) right.ptr + right.length && left.ptr >= right.ptr;
 }
 
 @("\"\" quote at the beginning and end of a range")
