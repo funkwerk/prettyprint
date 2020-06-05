@@ -22,10 +22,10 @@
 			"targetPath": "build",
 			"targetName": "TestRunner",
 			"targetType": "executable",
-			"preBuildCommands": ["$DUB run --compiler=$$DC unit-threaded -c gen_ut_main -- -f build/ut.d"],
+			"preBuildCommands": ["$DUB run --compiler=$$DC unit-threaded -c gen_ut_main -- -f build/ut.d -d $DUB"],
 			"mainSourceFile": "build/ut.d",
 			"dependencies": {
-				"unit-threaded": "~>0.10"
+				"unit-threaded": "~>1.0"
 			}
 		}
 	],

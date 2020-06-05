@@ -233,7 +233,7 @@ unittest
 {
     const text = `("",""]`;
 
-    parse(text).shouldEqual(null);
+    parse(text).shouldEqual(Tree[].init);
 }
 
 // bug
