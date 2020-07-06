@@ -1,5 +1,6 @@
 module prettyprint;
 
+pure:
 @safe:
 
 import std.algorithm;
@@ -144,17 +145,17 @@ private struct OutputBuffer
         this.appender ~= text;
     }
 
-    string data()
+    string data() nothrow pure @safe
     {
         return this.appender.data;
     }
 
-    size_t currentLineLength()
+    size_t currentLineLength() nothrow pure @safe
     {
         return this.appender.data.length - this.lastLinebreak;
     }
 
-    void newline()
+    void newline() nothrow pure
     {
         this.appender ~= "\n";
         this.lastLinebreak = this.appender.data.length;
@@ -345,13 +346,25 @@ private struct Tree
 
     string suffix = null;
 
-    bool lengthExceeds(size_t limit) const
+    bool lengthExceeds(size_t limit) const nothrow pure @safe
     {
         return lengthRemainsOf(limit) < 0;
     }
 
+    string toString() const pure
+    {
+        import std.format : format;
+
+        if (this.parenType.isNull)
+        {
+            return format!"%s%s"(this.prefix, this.suffix);
+        }
+        return format!"%s%s%(%s, %)%s"(
+            this.prefix, this.parenType.get.opening, this.children, this.parenType.get.closing);
+    }
+
     // returns how much remains of length after printing this. if negative, may be inaccurate.
-    private ptrdiff_t lengthRemainsOf(ptrdiff_t length) const
+    private ptrdiff_t lengthRemainsOf(ptrdiff_t length) const nothrow pure
     {
         length -= this.prefix.length;
         length -= this.suffix.length;
@@ -425,26 +438,26 @@ private struct QuotedText
 
     debug invariant(this.text.refSuffixOf(this.textBeforeSkip));
 
-    this(string text)
+    this(string text) nothrow pure
     {
         this(text, text);
     }
 
-    private this(string text, string textBeforeSkip)
+    private this(string text, string textBeforeSkip) nothrow pure
     {
         this.text = text;
         this.textBeforeSkip = textBeforeSkip;
         skipQuote;
     }
 
-    QuotedText consumeQuote()
+    QuotedText consumeQuote() pure
     {
         // set this.textBeforeSkip to this.text, indicating that we've already accounted for quotes
         return QuotedText(this.text);
     }
 
     // return text from start until other, which must be a different range over the same text
-    string textUntil(QuotedText other)
+    string textUntil(QuotedText other) pure
     in (other.text.refSuffixOf(this.textBeforeSkip))
     {
         // from our skip-front to other's skip-back
@@ -453,36 +466,38 @@ private struct QuotedText
         return this.textBeforeSkip[0 .. this.textBeforeSkip.length - other.text.length];
     }
 
-    bool empty() const
+    bool empty() const pure
     {
         return this.text.empty;
     }
 
-    dchar front() const
+    dchar front() const pure
     {
         return this.text.front;
     }
 
-    void popFront()
+    void popFront() pure
     {
         this.text.popFront;
         this.textBeforeSkip = this.text;
         skipQuote;
     }
 
-    private void skipQuote()
+    private void skipQuote() nothrow pure
     {
-        bool skippedQuote(dchar marker, bool escapeChars)
+        bool skippedQuote(dchar marker, bool escapeChars) nothrow pure
         {
-            if (this.text.empty || this.text.front != marker)
+            import std.exception : assumeWontThrow;
+
+            if (this.text.empty || assumeWontThrow(this.text.front) != marker)
             {
                 return false;
             }
             this.text.popFront; // skip opening marker character
 
-            while (!this.text.empty && this.text.front != marker)
+            while (!this.text.empty && assumeWontThrow(this.text.front) != marker)
             {
-                if (escapeChars && this.text.front == '\\')
+                if (escapeChars && assumeWontThrow(this.text.front) == '\\')
                 {
                     this.text.popFront; // if escaping, skip an additional character
                 }
