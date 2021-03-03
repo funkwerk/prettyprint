@@ -317,7 +317,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
             return Nullable!Tree();
         }
 
-        children ~= child;
+        children ~= child.get;
     }
 }
 
