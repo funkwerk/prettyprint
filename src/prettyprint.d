@@ -258,7 +258,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
 
         textRange = closer.consumeQuote;
 
-        return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
+        return prefix.empty ? Nullable!Tree() : Nullable!Tree(textRange.parseSuffix(Tree(prefix)));
     }
 
     const prefix = textRange.textUntil(parenStart);
@@ -267,7 +267,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
     {
         textRange = parenStart.consumeQuote;
 
-        return prefix.empty ? Nullable!Tree() : textRange.parseSuffix(Tree(prefix)).nullable;
+        return prefix.empty ? Nullable!Tree() : Nullable!Tree(textRange.parseSuffix(Tree(prefix)));
     }
 
     const parenType = () {
@@ -307,7 +307,7 @@ private Nullable!Tree parse(ref QuotedText textRange, string expectedClosers = "
 
             textRange.popFront;
 
-            return textRange.parseSuffix(Tree(prefix, Nullable!ParenType(parenType), children)).nullable;
+            return Nullable!Tree(textRange.parseSuffix(Tree(prefix, Nullable!ParenType(parenType), children)));
         }
 
         auto child = textRange.parse(parenType.closingWithComma);
