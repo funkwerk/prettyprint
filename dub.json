@@ -33,7 +33,6 @@
 		{
 			"name": "pp",
 			"description": "Pretty-print runner that reads stdin and outputs prettyprinted lines",
-			"targetType": "application",
 			"sourcePaths": ["pp/src"],
 			"targetPath": "../build",
 			"targetName": "pp",
