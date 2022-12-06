@@ -1,21 +1,3 @@
-# prettyprint
+# Repo disabled!
 
-prettyprint takes a string representing a tree of parentheses and linebreaks and indents it.
-
-# Usage
-
-## Command line tool
-
-    dub run prettyprint:pp < logfile
-
-## Library
-
-```
-import prettyprint : prettyprint;
-
-string formattedOutput = object.toString().prettyprint;
-```
-
-# API
-
-    public string prettyprint(const string text, size_t columnWidth = 80);
+We've moved to [funkwerk-mobility/prettyprint](https://github.com/funkwerk-mobility/prettyprint)!
